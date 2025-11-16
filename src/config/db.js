@@ -24,7 +24,7 @@ async function getPool() {
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
     // Serverless-friendly: reuse connections
-    reconnect: true,
+    // Note: reconnect is handled by mysql2 automatically, no need to set it
   };
 
   try {
