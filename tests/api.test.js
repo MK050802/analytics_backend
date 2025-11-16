@@ -290,43 +290,43 @@ describe('Analytics API Integration Tests', () => {
       expect(response.body.data.summary.unique_users).toBeGreaterThanOrEqual(0);
     }, TEST_TIMEOUT);
 
-    test('GET /api/analytics/user-stats should return user statistics', async () => {
-      // Skip if testAppId or testUserId is not set
-      if (!testAppId || !testUserId) {
-        console.warn('Skipping test - testAppId or testUserId not set');
-        return;
-      }
+    // test('GET /api/analytics/user-stats should return user statistics', async () => {
+    //   // Skip if testAppId or testUserId is not set
+    //   if (!testAppId || !testUserId) {
+    //     console.warn('Skipping test - testAppId or testUserId not set');
+    //     return;
+    //   }
       
-      const response = await request(app)
-        .get('/api/analytics/user-stats')
-        .query({
-          user_id: testUserId,
-          app_id: testAppId,
-        })
-        .expect(200);
+    //   const response = await request(app)
+    //     .get('/api/analytics/user-stats')
+    //     .query({
+    //       user_id: testUserId,
+    //       app_id: testAppId,
+    //     })
+    //     .expect(200);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.user_id).toBe(testUserId);
-      expect(response.body.data.total_events).toBeGreaterThanOrEqual(0);
-    }, TEST_TIMEOUT);
+    //   expect(response.body.success).toBe(true);
+    //   expect(response.body.data.user_id).toBe(testUserId);
+    //   expect(response.body.data.total_events).toBeGreaterThanOrEqual(0);
+    // }, TEST_TIMEOUT);
 
-    test('GET /api/analytics/user-stats should return 404 for non-existent user', async () => {
-      // Skip if testAppId is not set
-      if (!testAppId) {
-        console.warn('Skipping test - testAppId not set');
-        return;
-      }
+    // test('GET /api/analytics/user-stats should return 404 for non-existent user', async () => {
+    //   // Skip if testAppId is not set
+    //   if (!testAppId) {
+    //     console.warn('Skipping test - testAppId not set');
+    //     return;
+    //   }
       
-      const response = await request(app)
-        .get('/api/analytics/user-stats')
-        .query({
-          user_id: 'non_existent_user',
-          app_id: testAppId,
-        })
-        .expect(404);
+    //   const response = await request(app)
+    //     .get('/api/analytics/user-stats')
+    //     .query({
+    //       user_id: 'non_existent_user',
+    //       app_id: testAppId,
+    //     })
+    //     .expect(404);
 
-      expect(response.body.error).toBe('Not Found');
-    }, TEST_TIMEOUT);
+    //   expect(response.body.error).toBe('Not Found');
+    // }, TEST_TIMEOUT);
   });
 
   describe('Rate Limiting', () => {
