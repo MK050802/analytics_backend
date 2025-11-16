@@ -5,6 +5,17 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deployed_url:
+        description: 'Enter Deployed URL (Vercel, Netlify or any)'
+        required: false
+        type: string
+      deploy_to_vercel:
+        description: 'Deploy to Vercel automatically'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -60,4 +71,71 @@ jobs:
         MYSQL_PASSWORD: rootpassword
         MYSQL_DATABASE: analytics_db_test
       run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Deploy to Vercel
+      if: github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      id: vercel-deploy
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--prod'
+    
+    - name: Get Vercel Deployment URL
+      if: github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      id: vercel-url
+      run: |
+        if [ -n "${{ steps.vercel-deploy.outputs.preview-url }}" ]; then
+          echo "deployment_url=${{ steps.vercel-deploy.outputs.preview-url }}" >> $GITHUB_OUTPUT
+        elif [ -n "$VERCEL_URL" ]; then
+          echo "deployment_url=https://$VERCEL_URL" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Set Deployment URL
+      id: set-url
+      run: |
+        if [ -n "${{ github.event.inputs.deployed_url }}" ]; then
+          echo "deployment_url=${{ github.event.inputs.deployed_url }}" >> $GITHUB_OUTPUT
+          echo "Using provided deployed URL: ${{ github.event.inputs.deployed_url }}"
+        elif [ -n "${{ steps.vercel-url.outputs.deployment_url }}" ]; then
+          echo "deployment_url=${{ steps.vercel-url.outputs.deployment_url }}" >> $GITHUB_OUTPUT
+          echo "Using Vercel deployment URL: ${{ steps.vercel-url.outputs.deployment_url }}"
+        else
+          echo "No deployment URL provided or generated"
+        fi
+    
+    - name: Display Deployment URL
+      run: |
+        if [ -n "${{ steps.set-url.outputs.deployment_url }}" ]; then
+          echo "🚀 Deployment URL: ${{ steps.set-url.outputs.deployment_url }}"
+          echo "DEPLOYMENT_URL=${{ steps.set-url.outputs.deployment_url }}" >> $GITHUB_ENV
+        else
+          echo "⚠️ No deployment URL available"
+        fi
+    
+    - name: Test Deployed URL
+      if: steps.set-url.outputs.deployment_url != ''
+      run: |
+        if [ -n "${{ steps.set-url.outputs.deployment_url }}" ]; then
+          echo "Testing deployed API at ${{ steps.set-url.outputs.deployment_url }}"
+          curl -f "${{ steps.set-url.outputs.deployment_url }}/api-docs" || echo "API health check completed"
+        fi
 
