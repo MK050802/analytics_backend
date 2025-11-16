@@ -112,7 +112,27 @@ async function redirectShortUrl(req, res) {
 
     if (apiKeys.length > 0) {
       const eventId = genId();
-      const ipAddress = req.ip || req.connection.remoteAddress || null;
+      
+      // Safely get IP address (works in both production and test environments)
+      let ipAddress = null;
+      try {
+        // Try Express's req.ip first (if trust proxy is set)
+        if (req.ip && typeof req.ip === 'string') {
+          ipAddress = req.ip;
+        }
+      } catch (e) {
+        // req.ip might fail in test environment, ignore
+      }
+      
+      // Fallback to other methods
+      if (!ipAddress) {
+        ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                    req.headers['x-real-ip'] ||
+                    req.connection?.remoteAddress ||
+                    req.socket?.remoteAddress ||
+                    null;
+      }
+      
       const userAgent = req.headers['user-agent'] || null;
 
       await pool.execute(
