@@ -36,6 +36,11 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
+    - name: Install MySQL client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y default-mysql-client
+    
     - name: Wait for MySQL
       run: |
         while ! mysqladmin ping -h 127.0.0.1 -u root -prootpassword --silent; do
