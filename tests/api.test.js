@@ -30,51 +30,91 @@ describe('Analytics API Integration Tests', () => {
     // Set up database schema
     try {
       const pool = await getPool();
+      const dbName = process.env.MYSQL_DATABASE || 'analytics_db_test';
       
       // Read and execute schema
       const schemaPath = path.join(__dirname, '..', 'schema.sql');
-      const schema = fs.readFileSync(schemaPath, 'utf8');
+      let schema = fs.readFileSync(schemaPath, 'utf8');
       
-      // Remove comments and split by semicolons
-      const statements = schema
+      // Remove comments (both line comments and inline comments)
+      schema = schema
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0 && !line.startsWith('--'))
-        .join('\n')
+        .map(line => {
+          // Remove inline comments (-- comments)
+          const commentIndex = line.indexOf('--');
+          if (commentIndex >= 0) {
+            return line.substring(0, commentIndex);
+          }
+          return line;
+        })
+        .filter(line => line.trim().length > 0 && !line.trim().startsWith('--'))
+        .join('\n');
+      
+      // Split by semicolons to get individual statements
+      const statements = schema
         .split(';')
         .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .filter(s => s.length > 0 && !s.match(/^\s*$/));
       
+      // Execute statements
+      let executedCount = 0;
       for (const statement of statements) {
         if (statement.length > 0) {
           try {
-            // Skip USE statements - database is already set via connection config
-            if (statement.toLowerCase().startsWith('use ')) {
+            const upperStatement = statement.toUpperCase().trim();
+            
+            // Skip CREATE DATABASE and USE statements - database is already set via connection config
+            if (upperStatement.startsWith('CREATE DATABASE') || 
+                upperStatement.startsWith('USE ')) {
               continue;
             }
             
             // Execute statement
             await pool.execute(statement);
+            executedCount++;
           } catch (err) {
             // Ignore errors for "IF NOT EXISTS" statements and duplicates
             const errMsg = err.message.toLowerCase();
+            const errCode = err.code || '';
+            
             if (
               errMsg.includes('already exists') || 
               errMsg.includes('duplicate') ||
-              errMsg.includes('database exists')
+              errMsg.includes('database exists') ||
+              errCode === 'ER_DUP_ENTRY' ||
+              errCode === 'ER_TABLE_EXISTS_ERROR'
             ) {
               // Expected for IF NOT EXISTS
+              executedCount++;
               continue;
             }
-            console.warn('Schema execution warning:', err.message, 'Statement:', statement.substring(0, 50));
+            
+            // Log but don't fail - might be expected errors
+            console.warn('Schema execution warning:', err.message);
+            console.warn('Statement:', statement.substring(0, 100));
           }
         }
       }
       
-      console.log('✅ Database schema setup complete');
+      // Verify tables were created
+      const [tables] = await pool.execute(`
+        SELECT TABLE_NAME 
+        FROM information_schema.TABLES 
+        WHERE TABLE_SCHEMA = ?
+      `, [dbName]);
+      
+      const tableNames = tables.map(t => t.TABLE_NAME);
+      const requiredTables = ['apps', 'api_keys', 'events', 'short_urls'];
+      const missingTables = requiredTables.filter(t => !tableNames.includes(t));
+      
+      if (missingTables.length > 0) {
+        throw new Error(`Missing required tables: ${missingTables.join(', ')}. Created tables: ${tableNames.join(', ')}`);
+      }
+      
+      console.log(`✅ Database schema setup complete. Executed ${executedCount} statements. Tables: ${tableNames.join(', ')}`);
     } catch (error) {
       console.error('Failed to setup database schema:', error);
-      // Don't throw - let tests run and fail gracefully
+      throw error; // Re-throw to fail tests if schema setup fails
     }
   }, TEST_TIMEOUT * 2);
 
