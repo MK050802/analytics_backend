@@ -294,28 +294,26 @@ async function userStats(req, res) {
           COUNT(*) as total_events,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen,
-          ip_address
+          (SELECT ip_address FROM events 
+           WHERE user_id = ? AND app_id = ? 
+           ORDER BY timestamp DESC LIMIT 1) as ip_address
         FROM events
         WHERE user_id = ? AND app_id = ?
-        GROUP BY ip_address
-        ORDER BY last_seen DESC
-        LIMIT 1
       `;
-      params = [user_id, app_id];
+      params = [user_id, app_id, user_id, app_id];
     } else {
       query = `
         SELECT 
           COUNT(*) as total_events,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen,
-          ip_address
+          (SELECT ip_address FROM events 
+           WHERE user_id = ? 
+           ORDER BY timestamp DESC LIMIT 1) as ip_address
         FROM events
         WHERE user_id = ?
-        GROUP BY ip_address
-        ORDER BY last_seen DESC
-        LIMIT 1
       `;
-      params = [user_id];
+      params = [user_id, user_id];
     }
 
     const [rows] = await pool.execute(query, params);
