@@ -89,8 +89,19 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
+    - name: Check Vercel Secrets
+      id: check-vercel-secrets
+      run: |
+        if [ -n "${{ secrets.VERCEL_TOKEN }}" ] && [ -n "${{ secrets.VERCEL_ORG_ID }}" ] && [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+          echo "secrets_available=true" >> $GITHUB_OUTPUT
+          echo "✅ Vercel secrets are configured"
+        else
+          echo "secrets_available=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Vercel secrets are not configured. Skipping Vercel deployment."
+        fi
+    
     - name: Deploy to Vercel
-      if: github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      if: (github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && steps.check-vercel-secrets.outputs.secrets_available == 'true'
       id: vercel-deploy
       uses: amondnet/vercel-action@v25
       with:
@@ -100,7 +111,7 @@ jobs:
         vercel-args: '--prod'
     
     - name: Get Vercel Deployment URL
-      if: github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      if: (github.event.inputs.deploy_to_vercel == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && steps.check-vercel-secrets.outputs.secrets_available == 'true'
       id: vercel-url
       run: |
         if [ -n "${{ steps.vercel-deploy.outputs.preview-url }}" ]; then
