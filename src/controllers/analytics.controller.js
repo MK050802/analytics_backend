@@ -273,114 +273,114 @@ async function eventSummary(req, res) {
  * GET /api/analytics/user-stats
  * Query params: user_id, app_id (optional)
  */
-async function userStats(req, res) {
-  try {
-    const { user_id, app_id } = req.query;
+// async function userStats(req, res) {
+//   try {
+//     const { user_id, app_id } = req.query;
 
-    if (!user_id) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'user_id query parameter is required.',
-      });
-    }
+//     if (!user_id) {
+//       return res.status(400).json({
+//         error: 'Bad Request',
+//         message: 'user_id query parameter is required.',
+//       });
+//     }
 
-    const pool = await getPool();
-    let query;
-    let params;
+//     const pool = await getPool();
+//     let query;
+//     let params;
 
-    if (app_id) {
-      query = `
-        SELECT 
-          COUNT(*) as total_events,
-          MIN(timestamp) as first_seen,
-          MAX(timestamp) as last_seen,
-          (SELECT ip_address FROM events 
-           WHERE user_id = ? AND app_id = ? 
-           ORDER BY timestamp DESC LIMIT 1) as ip_address
-        FROM events
-        WHERE user_id = ? AND app_id = ?
-      `;
-      params = [user_id, app_id, user_id, app_id];
-    } else {
-      query = `
-        SELECT 
-          COUNT(*) as total_events,
-          MIN(timestamp) as first_seen,
-          MAX(timestamp) as last_seen,
-          (SELECT ip_address FROM events 
-           WHERE user_id = ? 
-           ORDER BY timestamp DESC LIMIT 1) as ip_address
-        FROM events
-        WHERE user_id = ?
-      `;
-      params = [user_id, user_id];
-    }
+//     if (app_id) {
+//       query = `
+//         SELECT 
+//           COUNT(*) as total_events,
+//           MIN(timestamp) as first_seen,
+//           MAX(timestamp) as last_seen,
+//           (SELECT ip_address FROM events 
+//            WHERE user_id = ? AND app_id = ? 
+//            ORDER BY timestamp DESC LIMIT 1) as ip_address
+//         FROM events
+//         WHERE user_id = ? AND app_id = ?
+//       `;
+//       params = [user_id, app_id, user_id, app_id];
+//     } else {
+//       query = `
+//         SELECT 
+//           COUNT(*) as total_events,
+//           MIN(timestamp) as first_seen,
+//           MAX(timestamp) as last_seen,
+//           (SELECT ip_address FROM events 
+//            WHERE user_id = ? 
+//            ORDER BY timestamp DESC LIMIT 1) as ip_address
+//         FROM events
+//         WHERE user_id = ?
+//       `;
+//       params = [user_id, user_id];
+//     }
 
-    const [rows] = await pool.execute(query, params);
+//     const [rows] = await pool.execute(query, params);
 
-    if (rows.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'No events found for this user.',
-      });
-    }
+//     if (rows.length === 0) {
+//       return res.status(404).json({
+//         error: 'Not Found',
+//         message: 'No events found for this user.',
+//       });
+//     }
 
-    // Get recent events metadata
-    let recentEventsQuery;
-    let recentEventsParams;
-    if (app_id) {
-      recentEventsQuery = `
-        SELECT event_name, timestamp, properties
-        FROM events
-        WHERE user_id = ? AND app_id = ?
-        ORDER BY timestamp DESC
-        LIMIT 10
-      `;
-      recentEventsParams = [user_id, app_id];
-    } else {
-      recentEventsQuery = `
-        SELECT event_name, timestamp, properties
-        FROM events
-        WHERE user_id = ?
-        ORDER BY timestamp DESC
-        LIMIT 10
-      `;
-      recentEventsParams = [user_id];
-    }
+//     // Get recent events metadata
+//     let recentEventsQuery;
+//     let recentEventsParams;
+//     if (app_id) {
+//       recentEventsQuery = `
+//         SELECT event_name, timestamp, properties
+//         FROM events
+//         WHERE user_id = ? AND app_id = ?
+//         ORDER BY timestamp DESC
+//         LIMIT 10
+//       `;
+//       recentEventsParams = [user_id, app_id];
+//     } else {
+//       recentEventsQuery = `
+//         SELECT event_name, timestamp, properties
+//         FROM events
+//         WHERE user_id = ?
+//         ORDER BY timestamp DESC
+//         LIMIT 10
+//       `;
+//       recentEventsParams = [user_id];
+//     }
 
-    const [recentEvents] = await pool.execute(recentEventsQuery, recentEventsParams);
+//     const [recentEvents] = await pool.execute(recentEventsQuery, recentEventsParams);
 
-    const stats = rows[0];
-    const result = {
-      user_id,
-      app_id: app_id || null,
-      total_events: parseInt(stats.total_events, 10),
-      first_seen: stats.first_seen,
-      last_seen: stats.last_seen,
-      ip_address: stats.ip_address,
-      recent_events: recentEvents.map((event) => ({
-        event_name: event.event_name,
-        timestamp: event.timestamp,
-        properties: event.properties ? JSON.parse(event.properties) : null,
-      })),
-    };
+//     const stats = rows[0];
+//     const result = {
+//       user_id,
+//       app_id: app_id || null,
+//       total_events: parseInt(stats.total_events, 10),
+//       first_seen: stats.first_seen,
+//       last_seen: stats.last_seen,
+//       ip_address: stats.ip_address,
+//       recent_events: recentEvents.map((event) => ({
+//         event_name: event.event_name,
+//         timestamp: event.timestamp,
+//         properties: event.properties ? JSON.parse(event.properties) : null,
+//       })),
+//     };
 
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error('User stats error:', error);
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to retrieve user statistics.',
-    });
-  }
-}
+//     res.json({
+//       success: true,
+//       data: result,
+//     });
+//   } catch (error) {
+//     console.error('User stats error:', error);
+//     res.status(500).json({
+//       error: 'Internal Server Error',
+//       message: 'Failed to retrieve user statistics.',
+//     });
+//   }
+// }
 
 module.exports = {
   collectEvent,
   eventSummary,
-  userStats,
+  // userStats,
 };
 

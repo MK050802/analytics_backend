@@ -129,7 +129,7 @@ router.get('/event-summary', eventSummary);
  *       404:
  *         description: User not found
  */
-router.get('/user-stats', userStats);
+// router.get('/user-stats', userStats);
 
 module.exports = router;
 
